@@ -9,6 +9,9 @@ package aoc
   * - `parse` returns the parsed tree and the residue of the provided tokens.
   * - Vector provides eC (effectively constant time) for indexed access and append, so
   * it's a good choice for children (and it's immutable!).
+  *
+  * - The tree data structure used here is known as the Rose Tree (purely functional)
+  * - The bfs method is a lazy `traverse` on the cofree monad (Rose Tree).
   */
 object Day08 extends App {
 
@@ -35,8 +38,9 @@ object Day08 extends App {
 
   def bfs(tree: Tree): Stream[Tree] = tree #:: tree.children.map(bfs).fold(Stream.Empty)(_ ++ _)
 
-  val (tree, _) = parse(numbers)
+  val (tree, Nil) = parse(numbers)
   val metaEntriesCount = bfs(tree).map(_.node.sum).sum
   println(s"Part 1: $metaEntriesCount")
   println(s"Part 2: ${tree.value}")
+
 }
