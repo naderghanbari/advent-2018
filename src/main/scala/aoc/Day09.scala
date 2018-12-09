@@ -1,36 +1,51 @@
 package aoc
 
-import java.lang.Math.floorMod
+import java.util
 
+import scala.collection.mutable
+
+/**
+  * First I used an immutable ring (consisting of two Vectors one flipped and one in
+  * normal order, but then I realised an occasional reverse is needed so the amortized
+  * complexity was not good (probably still sub-linear but definitely not constant).
+  *
+  * Then I tried ArrayDeque (from Scala 2.13.0-M4) and it worked but other solutions (day 3, 4, 8) broke
+  * because of changes in Parallel collections).
+  *
+  * Final call: mutability to the rescue (Java LinkedList)
+  * for now until I find a good immutable circular doubly-linked linked list.
+  */
 object Day09 extends App {
 
-  val marbles = 70918
-  val elves = 464
-  val scores = Array.fill(elves)(0)
+  val elves  = 464
+  val scores = mutable.Map.empty[Int, Long].withDefaultValue(0L)
 
-  type Ring = (Vector[Int], Vector[Int])
+  val deck               = new util.LinkedList[Int]()
+  def <<<                = deck offerLast deck.removeFirst()
+  def >>>(whoCares: Int) = deck offerFirst deck.removeLast()
 
-  case class State(ring: Vector[Int], idx: Int) {
-    def place(marble: Int) = marble match {
-      case magic if magic % 23 == 0 =>
-        val next = floorMod(idx - 7, ring.size)
-        val (left, right) = ring splitAt next
-        scores(magic % elves) += magic + ring(next)
-        this.copy(ring = left ++ right.tail, idx = next)
-      case muggle =>
-        val next = floorMod(idx + 1, ring.size) + 1
-        val (left, right) = ring splitAt next
-        this.copy(ring = left ++ (muggle +: right), idx = next)
-    }
+  def place(marble: Int) = if (marble % 23 == 0) placeMagic(marble) else placeMuggle(marble)
 
-    def reward(player: Int, inc: Int) =
-      scores(player) += inc
+  def placeMagic(magic: Int) = {
+    (1 to 7) foreach >>>
+    scores(magic % elves) += magic + deck.removeLast()
+    <<<
   }
 
-  val initial = State(Vector(0, 2, 1, 3), 3)
+  def placeMuggle(muggle: Int) = {
+    <<<
+    deck addLast muggle
+  }
 
-  val finalState = (4 to marbles + 1).foldLeft(initial)(_ place _)
+  ////////////////////////////////////////////////////
 
-  println(scores.max)
+  val marbles = 70918
+  deck push 0
+
+  (1 to marbles).foreach(place)
+  println(s"Part 1: ${scores.values.max}")
+
+  (marbles + 1 to marbles * 100).foreach(place)
+  println(s"Part 2: ${scores.values.max}")
 
 }
