@@ -34,7 +34,7 @@ case class Sky(points: List[SkyPoint], time: Int) {
     val horizontal = points.minBy(_.x).x to points.maxBy(_.x).x
     val byY = points.groupBy(_.y).withDefaultValue(Seq.empty)
     val skyLines = (ys.min to ys.max).view.map { y =>
-      val charOf = byY(y).map(_.x).groupBy(identity).mapValues(_ => '*').withDefaultValue('.')
+      val charOf = byY(y).map(_.x).groupBy(identity).mapValues(_ => '#').withDefaultValue(' ')
       horizontal.map(charOf).mkString("")
     }
     s"${skyLines.mkString("\n")}\nWaited $time seconds!"
