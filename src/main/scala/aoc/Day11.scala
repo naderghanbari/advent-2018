@@ -2,7 +2,7 @@ package aoc
 
 object Day11 extends App {
 
-  val SerialNumber = 1133
+  val serialNumber = DataSource.linesFromTextFile("day-11-input.txt").next.trim.toInt
 
   val arr = Array.fill(300)(Array.fill(300)(0))
   for {
@@ -16,10 +16,10 @@ object Day11 extends App {
   def level(x: Int, y: Int) =
     (((x * x * y +
       x * 10 * y +
-      x * SerialNumber +
+      x * serialNumber +
       10 * x * y +
       100 * y +
-      10 * SerialNumber) / 100) % 10) - 5
+      10 * serialNumber) / 100) % 10) - 5
 
   def maxLevel(size: Int) = {
     val delta = squareIndices(size)
