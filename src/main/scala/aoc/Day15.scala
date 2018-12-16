@@ -30,7 +30,7 @@ object Day15 extends App {
           case (l, enemy) if graph(current).contains(l) && warriors(current).isFoe(enemy) => (l, enemy)
         }
         .toList
-        .sorted
+        .sortBy(it => (it._1, it._2.HP))
     }
 
     def attack(l: Location) = {
