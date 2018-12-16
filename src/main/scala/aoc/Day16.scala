@@ -4,26 +4,24 @@ import scala.annotation.tailrec
 
 object Day16 extends App {
 
-  val StatePattern = "^.*\\[(\\d+), (\\d+), (\\d+), (\\d+)\\]$".r
-  val InstPattern = "^(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)$".r
+  val Snap = "^.*\\[(\\d+), (\\d+), (\\d+), (\\d+)\\]$".r
+  val Inst = "^(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)$".r
 
   val samples =
     DataSource
       .linesFromTextFile("day-16-1-input.txt")
       .grouped(4)
+      .map(_.take(3))
       .map {
-        case Seq(
-        StatePattern(bA, bB, bC, bD),
-        InstPattern(iO, iA, iB, iC),
-        StatePattern(aA, aB, aC, aD), _) =>
+        case Seq(Snap(bA, bB, bC, bD), Inst(iO, iA, iB, iC), Snap(aA, aB, aC, aD)) =>
           val before = Device(Vector(bA.toInt, bB.toInt, bC.toInt, bD.toInt))
           val after = Device(Vector(aA.toInt, aB.toInt, aC.toInt, aD.toInt))
           Sample(iO.toInt, iA.toInt, iB.toInt, iC.toInt, before, after)
       }
       .toVector
 
-  case class Instruction(operation: String, A: Int, B: Int, C: Int) extends (Device => Device) {
-    def apply(d: Device): Device = operation match {
+  case class Instruction(operation: String, A: Int, B: Int, C: Int) {
+    def runOn(d: Device): Device = operation match {
       case "addr" => d storeInto C valueOf (d at A) + (d at B)
       case "addi" => d storeInto C valueOf (d at A) + B
       case "mulr" => d storeInto C valueOf (d at A) * (d at B)
@@ -57,6 +55,7 @@ object Day16 extends App {
     require(registers.size == 4, "This device has only 4 registers!")
     def at(r: Int) = registers(r)
     def storeInto(r: Int) = Write(this, r)
+    def run(instruction: Instruction) = instruction runOn this
   }
 
   case class Write(d: Device, r: Int) {
@@ -67,42 +66,35 @@ object Day16 extends App {
     def behavesLike: List[String] =
       Instructions
         .map(inst => Instruction(inst, A, B, C))
-        .collect { case inst if inst(before) == after => inst.operation }
+        .collect { case inst if (before run inst) == after => inst.operation }
         .toList
   }
-
 
   val candidates = samples.map(_.behavesLike)
   val count = candidates.count(_.size > 2)
 
   println(s"Part 1: $count")
 
-  val constraints: List[(Int, List[String])] = (samples.map(_.opcode), candidates).zipped.toList.sortBy(_._2.size)
+  val constraints = (samples.map(_.opcode), candidates).zipped.toList.sortBy(_._2.size)
 
-  @tailrec def naiveCSP(cs: List[(Int, List[String])], soFar: Map[Int, String]): Map[Int, String] =
-    soFar.keySet.size match {
-      case 16 => soFar
-      case _ => cs match {
-        case (opcode, inst :: Nil) :: tail =>
-          val remainingConstraints = tail.collect { case (o, choices) if o != opcode => (o, choices.filterNot(_ == inst)) }
-          naiveCSP(remainingConstraints.sortBy(_._2.size), soFar + (opcode -> inst))
-        case Nil => throw new IllegalStateException("Should not happen")
-      }
-    }
+  @tailrec def naiveCSP(cs: List[(Int, List[String])], soFar: Map[Int, String]): Map[Int, String] = cs match {
+    case Nil => soFar
+    case (opcode, inst :: Nil) :: tail =>
+      val remaining = tail.collect { case (o, choices) if o != opcode => (o, choices.filterNot(_ == inst)) }
+      val remainingSorted = remaining.sortBy(_._2.size)
+      naiveCSP(remainingSorted, soFar + (opcode -> inst))
+  }
 
-  val instMap = naiveCSP(constraints, Map.empty[Int, String])
-
+  val instructionFromOpcode = naiveCSP(constraints, Map.empty[Int, String])
+  val initialState = Device(Vector(0, 0, 0, 0))
   val program =
     DataSource
       .linesFromTextFile("day-16-2-input.txt")
-      .map {
-        case InstPattern(iO, iA, iB, iC) => Instruction(instMap(iO.toInt), iA.toInt, iB.toInt, iC.toInt)
+      .map { case Inst(iO, iA, iB, iC) =>
+        Instruction(instructionFromOpcode(iO.toInt), iA.toInt, iB.toInt, iC.toInt)
       }
-      .toVector
 
-  val initialState = Device(Vector(0, 0, 0, 0))
-
-  val endResult = program.foldLeft(initialState) { (device, instruction) => instruction apply device }
+  val endResult = program.foldLeft(initialState)(_ run _)
 
   println(s"Part 2: ${endResult at 0}")
 
