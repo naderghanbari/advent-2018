@@ -1,54 +1,66 @@
 package aoc
 
 import scala.Function.tupled
+import scala.collection.{immutable, mutable}
 
 object Day15 extends App {
 
-  type Square = (Char, Option[Warrior])
-
-  val terrain: Array[Array[Square]] =
-    DataSource.linesFromTextFile("day-15-input.txt")
-      .map(
-        _.toArray.map {
-          case w@'#' => w -> Option.empty[Warrior]
-          case n@'.' => n -> Option.empty[Warrior]
-          case g@'G' => g -> Some(Goblin())
-          case e@'E' => e -> Some(Elf())
-        }
-      )
-      .toArray
+  val terrain = DataSource.linesFromTextFile("day-15-input.txt").map(_.toArray).toArray
 
   val (height, width) = (terrain.length, terrain.head.length)
   val (ver, hor) = ((0 until height).view, (0 until width).view)
+  def isWall(l: Location) = resident(l) == '#'
   def squares = ver.flatMap(y => hor.map(Location(y, _)))
+
   def field = squares.filterNot(isWall).toVector
+  val warriors = mutable.Map.empty[Location, Warrior]
   val graph = (field, field.map(adjacent)).zipped.toMap
-  def warriorLocations = field.filter(hasWarrior)
 
-  def resident(l: Location) = terrain(l.y)(l.x)
-  def isWall(l: Location) = resident(l)._1 == '#'
-  def isEmpty(l: Location) = resident(l)._1 == '.'
-  def hasElf(l: Location) = resident(l)._1 == 'E'
-  def hasGoblin(l: Location) = resident(l)._1 == 'G'
-  def hasWarrior(l: Location) = resident(l)._2.isDefined
-  def adjacent(l: Location) = l.neighbors.filterNot(isWall)
+  field
+    .collect {
+      case l if hasElf(l) => warriors + (l -> Elf())
+      case l if hasGoblin(l) => warriors + (l -> Goblin())
+    }
 
-  def inRange(square: Square) =
-    warriorLocations
-      .map(resident)
-      .filter(it => it._2.exists(square._2.get.isFoe))
-      .collect { case enemy if adjacent(square.l).contains(enemy.l) => enemy }
-      .sorted[Warrior]
-      .toList
+  def round() = {
+    val candidates = warriors.keySet.toVector.sorted
+    def inRange(current: Location): immutable.Seq[(Location, Warrior)] = {
+      warriors
+        .collect {
+          case (l, enemy) if graph(current).contains(l) && warriors(current).isFoe(enemy) => (l, enemy)
+        }
+        .toList
+        .sorted
+    }
 
-  def move(w: Warrior): Unit = inRange(w) match {
-    case weakest =>
-    case
+    def attack(l: Location) = {
+      val hurt = warriors(l).hurt
+      if (hurt.isDead) warriors -= l else warriors.update(l, hurt)
+    }
+
+    case class Traversal(visited: Seq[Location], level: Map[Location, Int], parent: Map[Location, Option[Location]])
+
+    def shortestPathToEnemy(l: Location) = {
+
+      def iter(current: Location, visited: Set[Location], path: List[Location]) = {
+        val neighbors = graph(current)
+        neighbors.find(l => warriors(current).isFoe(warriors(l)))
+      }
+    }
+
+    candidates.foreach { current =>
+      inRange(current) match {
+        case (weakest, _) :: _ => attack(weakest)
+        case Nil =>
+      }
+    }
   }
 
-  println(warriors.head)
-  println(inRange(Goblin(Location(15, 29))))
-  println(graph(Location(20, 24)))
+  def resident(l: Location) = terrain(l.y)(l.x)
+  def isEmpty(l: Location) = resident(l) == '.'
+  def hasElf(l: Location) = resident(l) == 'E'
+  def hasGoblin(l: Location) = resident(l) == 'G'
+  def adjacent(l: Location) = l.neighbors.filterNot(isWall)
 
 }
 
@@ -59,6 +71,11 @@ sealed trait Warrior {
     case (_: Goblin, _: Elf) | (_: Elf, _: Goblin) => true
     case _ => false
   }
+  def hurt: Warrior = this match {
+    case Goblin(hp) => Goblin(hp - AP)
+    case Elf(hp) => Elf(hp - AP)
+  }
+  def isDead: Boolean = HP < 0
 }
 
 case class Goblin(HP: Int = 300) extends Warrior
@@ -74,3 +91,4 @@ object Location {
 }
 
 case class Field(adj: Location => Seq[Location])
+
