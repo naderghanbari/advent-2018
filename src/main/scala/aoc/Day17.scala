@@ -69,6 +69,9 @@ object Day17 extends App {
   val partOne = wet.union(atRest).count(inRange)
   println("Part 1: " + partOne)
 
+  val partTwo = atRest.count(inRange)
+  println("Part 2: " + partTwo)
+
 }
 
 sealed trait ClayVein
