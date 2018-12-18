@@ -17,28 +17,24 @@ object Day17 extends App {
 
   import Dir._
 
+  val atRest = mutable.Set.empty[Place]
+  val wet = mutable.Set.empty[Place]
+
   val input = DataSource.linesFromTextFile("day-17-input.txt").toStream
   val (rows, cols) = (input.collect(asRow).sortBy(_.y), input.collect(asCol).sortBy(_.x))
   val minY = rows.map(_.y).min min cols.map(_.top).min
   val maxY = rows.map(_.y).max max cols.map(_.bottom).max
   val inRange = (p: Place) => p.y >= minY && p.y <= maxY
-
   val rowPlaces = rows.flatMap(row => (row.left to row.right).map(x => Place(row.y, x)))
   val colPlaces = cols.flatMap(col => (col.top to col.bottom).map(y => Place(y, col.x)))
   val isClay = (rowPlaces ++ colPlaces).toSet
   val notClay = (p: Place) => !isClay(p)
-
-  val atRest = mutable.Set.empty[Place]
-  val wet = mutable.Set.empty[Place]
   val dry = (p: Place) => !wet(p)
 
-  def fillOneWay(leak: Place, dir: Dir) =
-    Iterator.continually(1).scanLeft(leak)((it, _) => it neighbor dir)
-      .find {
-        case it if wet(it) => atRest += it; false
-        case _ => true
-      }
-      .get
+  def fillOneWay(leak: Place, dir: Dir) = Iterator.continually(1).scanLeft(leak)((it, _) => it neighbor dir).find {
+    case it if wet(it) => atRest += it; false
+    case _ => true
+  }
 
   def unfold(leak: Place, dir: Dir): Boolean = {
     wet += leak
@@ -53,8 +49,8 @@ object Day17 extends App {
 
     if ((dir == Down) && leftFull && rightFull) {
       atRest += leak
-      left = fillOneWay(left, Left)
-      right = fillOneWay(right, Right)
+      left = fillOneWay(left, Left).get
+      right = fillOneWay(right, Right).get
     }
 
     dir match {
@@ -64,37 +60,13 @@ object Day17 extends App {
     }
   }
 
-  val spring = Place(y = 0, x = 500)
-  unfold(spring, Down)
-
-  val partOne = wet.union(atRest).count(inRange)
-  println("Part 1: " + partOne)
-
-  val partTwo = atRest.count(inRange)
-  println("Part 2: " + partTwo)
-
+  unfold(Place(y = 0, x = 500), Down)
+  println("Part 1: " + wet.union(atRest).count(inRange))
+  println("Part 2: " + atRest.count(inRange))
 }
 
-sealed trait ClayVein
-object ClayVein {
-  val RowPattern = "^y=(\\d+), x=(\\d+)\\.\\.(\\d+)$".r
-  val asRow: String PartialFunction Row = {
-    case RowPattern(y, left, right) => Row(y.toInt, left.toInt, right.toInt)
-  }
-
-  val ColPattern = "^x=(\\d+), y=(\\d+)\\.\\.(\\d+)$".r
-  val asCol: String PartialFunction Col = {
-    case ColPattern(x, top, bottom) => Col(x.toInt, top.toInt, bottom.toInt)
-  }
-}
-
-case class Row(y: Int, left: Int, right: Int) extends ClayVein
-case class Col(x: Int, top: Int, bottom: Int) extends ClayVein
-
-object Dir extends Enumeration {
-  type Dir = Value
-  val Up, Down, Left, Right = Value
-}
+case class Row(y: Int, left: Int, right: Int)
+case class Col(x: Int, top: Int, bottom: Int)
 
 case class Place(y: Int, x: Int) {
   def neighbor(dir: Dir.Dir) = dir match {
@@ -102,5 +74,21 @@ case class Place(y: Int, x: Int) {
     case Dir.Down => Place(y + 1, x)
     case Dir.Left => Place(y, x - 1)
     case Dir.Right => Place(y, x + 1)
+  }
+}
+
+object Dir extends Enumeration {
+  type Dir = Value
+  val Up, Down, Left, Right = Value
+}
+
+object ClayVein {
+  val RowPattern = "^y=(\\d+), x=(\\d+)\\.\\.(\\d+)$".r
+  val ColPattern = "^x=(\\d+), y=(\\d+)\\.\\.(\\d+)$".r
+  val asRow: String PartialFunction Row = {
+    case RowPattern(y, left, right) => Row(y.toInt, left.toInt, right.toInt)
+  }
+  val asCol: String PartialFunction Col = {
+    case ColPattern(x, top, bottom) => Col(x.toInt, top.toInt, bottom.toInt)
   }
 }
