@@ -26,39 +26,40 @@ object Day17 extends App {
   val rowPlaces = rows.flatMap(row => (row.left to row.right).map(x => Place(row.y, x)))
   val colPlaces = cols.flatMap(col => (col.top to col.bottom).map(y => Place(y, col.x)))
   val isClay = (rowPlaces ++ colPlaces).toSet
+  val notClay = (p: Place) => !isClay(p)
 
   val atRest = mutable.Set.empty[Place]
   val wet = mutable.Set.empty[Place]
+  val dry = (p: Place) => !wet(p)
 
-  def unfold(current: Place, dir: Dir): Boolean = {
-    wet += current
-    val below = current neighbor Down
-    var (left, right) = (current neighbor Left, current neighbor Right)
-
-    if (!isClay(below)) {
-      if (!wet(below) && (below.y >= 1) && (below.y <= maxY))
-        unfold(below, Down)
-      if (!atRest(below))
-        return false
-    }
-
-    val noRoomLeftInLeft = isClay(left) || !wet(left) && unfold(left, Left)
-    val noRoomLeftInRight = isClay(right) || !wet(right) && unfold(right, Right)
-    if ((dir == Down) && noRoomLeftInLeft && noRoomLeftInRight) {
-      atRest += current
-      while (wet(left)) {
-        atRest += left
-        left = left neighbor Left
+  def fillOneWay(leak: Place, dir: Dir) =
+    Iterator.continually(1).scanLeft(leak)((it, _) => it neighbor dir)
+      .find {
+        case it if wet(it) => atRest += it; false
+        case _ => true
       }
-      while (wet(right)) {
-        atRest += right
-        right = right neighbor Right
-      }
+      .get
+
+  def unfold(leak: Place, dir: Dir): Boolean = {
+    wet += leak
+    val below = leak neighbor Down
+    var (left, right) = (leak neighbor Left, leak neighbor Right)
+
+    if (notClay(below) && dry(below) && (below.y >= 1) && (below.y <= maxY)) unfold(below, Down)
+    if (notClay(below) && !atRest(below)) return false // pouring down, keep going (no need to backtrack)
+
+    val leftFull = isClay(left) || dry(left) && unfold(left, Left)
+    val rightFull = isClay(right) || dry(right) && unfold(right, Right)
+
+    if ((dir == Down) && leftFull && rightFull) {
+      atRest += leak
+      left = fillOneWay(left, Left)
+      right = fillOneWay(right, Right)
     }
 
     dir match {
-      case Left => noRoomLeftInLeft || isClay(left)
-      case Right => noRoomLeftInRight || isClay(right)
+      case Left => leftFull || isClay(left)
+      case Right => rightFull || isClay(right)
       case _ => false
     }
   }
