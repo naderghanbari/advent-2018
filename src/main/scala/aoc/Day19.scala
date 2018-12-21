@@ -45,17 +45,15 @@ object Day19 extends App {
     def valueOf(value: Int) = d.copy(regs = d.regs.updated(r, value))
   }
 
-  val IpRegister = "^#ip (\\d+)$".r
-  val InstPattern = "^(....)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)$".r
+  lazy val IpRegister = "^#ip (\\d+)$".r
+  lazy val InstPattern = "^(....)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)$".r
 
   val (first, rest) = DataSource.linesFromTextFile("day-19-input.txt").toVector.map(_.trim).splitAt(1)
 
-  val ipRegister = first match {
-    case Vector(IpRegister(x)) => x.toInt
-  }
+  val Vector(IpRegister(ipRegister)) = first
 
   val program = rest.map { case InstPattern(op, iA, iB, iC) => Inst(op, iA.toInt, iB.toInt, iC.toInt) }
-  val initialState = CPU(Vector(0, 0, 0, 0, 0, 0), ipRegister)
+  val initialState = CPU(Vector(0, 0, 0, 0, 0, 0), ipRegister.toInt)
 
   val Some(haltState) =
     Iterator
@@ -70,7 +68,7 @@ object Day19 extends App {
   println("Part 1: ", haltState)
 
   val escaped = OptimizeProgram.run().map(_.toInt)
-  val partTwoInit = CPU(escaped, ipRegister)
+  val partTwoInit = CPU(escaped, ipRegister.toInt)
 
   val Some(partTwoHalt) =
     Iterator
