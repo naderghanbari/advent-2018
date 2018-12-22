@@ -13,26 +13,21 @@ object Day21 extends App {
   val Some(finalState) =
     Iterator
       .continually('X)
-      .take(100000)
       .scanLeft((initialState, false, 0)) {
         case ((c, true, count), _) => (c, true, count)
         case ((c, false, count), _) if c.ip >= program.size => (c, true, count)
         case ((c, false, count), _) =>
           val inst = program(c.ip)
           val after = inst runOn c
-
-          if (c.ip == 28)
-            println("#" + count + " " + c.ip + ": " + inst + " ~~~> " + after.regs + (if (c.ip == after.ip) "" else s" JUMPT ${after.ip + 1}"))
           (after.++, false, count + 1)
       }
-      .collectFirst { case (halted, true, _) => halted }
+      .collectFirst { case (reached, _, _) if reached.ip == 28 => reached }
 
-  println("Part 2: ", finalState)
+  println("Part 1: " + (finalState at 5))
 }
 
-
+/** Instructions transpiled and optimized */
 object Routine extends App {
-
   var R0 = 0
   var R1 = 1
   var R3 = 65536
@@ -65,7 +60,6 @@ object Routine extends App {
       throw new IllegalStateException("HALTED")
     }
   } // #30
-
 
   println(R0, R1, 0, R3, R4, R5)
 
